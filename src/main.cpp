@@ -19,6 +19,7 @@ void setup()
     while(1);
   }
 
+  // must be after Wire.begin() whic is called inside Si5351.init()
   Wire.setClock(400000ul);
   Serial.println(F("I2C speed 400 kHz."));
 
@@ -41,7 +42,7 @@ const char * args[8];
 
 bool cmdIs(const char** args, const char * cmd)
 {
-  return strcmp(args[0], cmd) == 0;
+  return args && cmd && strcmp(args[0], cmd) == 0;
 }
 
 bool cmdStatus(const char** args)
@@ -84,19 +85,26 @@ bool cmdSetFreq(const char** args)
   return true;
 }
 
+bool cmdHelp()
+{
+  Serial.println(F("Available commands: "));
+  Serial.println(F("- help"));
+  Serial.println(F("- status"));
+  Serial.println(F("- freq_set <output_num(0-2)> <freq(8000-150000000)>"));
+  Serial.println(F("- freq_get <output_num(0-2)>"));
+  return true;
+}
+
 bool cmdHelp(const char** args)
 {
-  if(args && !cmdIs(args, "help")) return false;
-  Serial.println(F("commands: "));
-  Serial.println(F("- help"));
-  Serial.println(F("- freq_set <output_num(0-2)> <freq(8000-150000000)>"));
-  return true;
+  if(!cmdIs(args, "help")) return false;
+  return cmdHelp();
 }
 
 void cmdUnknonwn()
 {
-  Serial.println(F("ERR: unknown command"));
-  cmdHelp(nullptr);
+  Serial.println(F("ERR: Unknown command"));
+  cmdHelp();
 }
 
 void cmdProcess()
