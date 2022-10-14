@@ -1,59 +1,20 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <si5351.h>
+#include "Cli.h"
 
 Si5351 si5351;
-
 uint64_t frequencies[3] = {0, 0, 0};
-
-void setup()
-{
-  // Start serial and 
-  Serial.begin(115200);
-
-
-  // initialize the Si5351
-  if(!si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0))
-  {
-    Serial.println(F("SI5351 not found on I2C bus! Check wiring and restart."));
-    while(1);
-  }
-
-  // must be after Wire.begin() whic is called inside Si5351.init()
-  Wire.setClock(400000ul);
-  Serial.println(F("I2C speed 400 kHz."));
-
-  // Set CLK0 to output 1 MHz
-  si5351.set_freq(100000000ull, SI5351_CLK0);
-
-  // Query a status update and wait a bit to let the Si5351 populate the status flags correctly.
-  si5351.update_status();
-  delay(500);
-  Serial.println(F("Setup done."));
-}
-
-#define CMD_BUFF_SIZE 64u
-#define CMD_ARGS_SIZE 8u
-
-const char * DELIM = " \t";
-size_t cmdIdx = 0;
-char cmdBuff[CMD_BUFF_SIZE];
-const char * args[8];
-
-bool cmdIs(const char** args, const char * cmd)
-{
-  return args && cmd && strcmp(args[0], cmd) == 0;
-}
 
 bool cmdStatus(const char** args)
 {
-  if(!cmdIs(args, "status")) return false;
+  if(!Cli::is(args, "status")) return false;
   return true;
 }
 
 bool cmdSetFreq(const char** args)
 {
-  if(!cmdIs(args, "freq_set")) return false;
+  if(!Cli::is(args, "freq_set")) return false;
   if(!args[1]) {
     Serial.println(F("ERR: no output specified"));
     return true;
@@ -97,70 +58,56 @@ bool cmdHelp()
 
 bool cmdHelp(const char** args)
 {
-  if(!cmdIs(args, "help")) return false;
+  if(!Cli::is(args, "help")) return false;
   return cmdHelp();
 }
 
-void cmdUnknonwn()
+bool cmdUnknonwn(const char** args)
 {
-  Serial.println(F("ERR: Unknown command"));
-  cmdHelp();
+  Serial.print(F("ERR: Unknown command: \""));
+  Serial.print(args[0]);
+  Serial.println("\"");
+  return cmdHelp();
 }
 
-void cmdProcess()
+Cli::func_t cliFunctions[] = {
+  cmdHelp,
+  cmdSetFreq,
+  cmdStatus,
+  nullptr // required null at the end
+};
+
+Cli cmd(cliFunctions, cmdUnknonwn);
+
+void setup()
 {
-  if(!args[0]) return;
+  // Start serial 
+  Serial.begin(115200);
 
-  bool processed = cmdStatus(args);
-  processed |= cmdSetFreq(args);
-  processed |= cmdHelp(args);
-
-  if(!processed) cmdUnknonwn();
-}
-
-void cmdReset()
-{
-  for(size_t i = 0; i < CMD_ARGS_SIZE; ++i) {
-    args[i] = nullptr;
-  }
-}
-
-void cmdParse()
-{
-  Serial.println(cmdBuff);
-  cmdReset();
-  char * pch = strtok(cmdBuff, DELIM);
-  size_t count = 0;
-  while(pch)
+  // initialize the Si5351
+  if(!si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0))
   {
-    args[count++] = pch;
-    pch = strtok(NULL, DELIM);
-  }
-  cmdProcess();
-}
-
-void cmdRead(char c)
-{
-  // enter pressed, process command
-  if(c == '\r' || c == '\n') {
-    if(cmdIdx == 0) return; // empty buffer
-    cmdBuff[cmdIdx] = 0;
-    cmdIdx = 0;
-    cmdParse();
-    return;
+    Serial.println(F("SI5351 not found on I2C bus! Check wiring and restart."));
+    while(1);
   }
 
-  // ignore too long command
-  if(cmdIdx >= CMD_BUFF_SIZE - 1) return;
+  // tune I2C, must be after Wire.begin() whic is called inside Si5351.init()
+  Wire.setClock(400000ul);
+  Serial.println(F("I2C speed 400 kHz."));
 
-  // add to buffer
-  cmdBuff[cmdIdx++] = c;
+  // Set CLK0 to output 1 MHz
+  si5351.set_freq(100000000ull, SI5351_CLK0);
+
+  // Query a status update and wait a bit to let the Si5351 populate the status flags correctly.
+  si5351.update_status();
+  delay(500);
+  Serial.println(F("Ready."));
 }
 
 void loop()
 {
   while(Serial.available()) {
-    cmdRead(Serial.read());
+    cmd.parse(Serial.read());
   }
 
   unsigned long now = millis();
