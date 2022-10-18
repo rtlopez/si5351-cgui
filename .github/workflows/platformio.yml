@@ -24,8 +24,8 @@ jobs:
           echo "build_sha=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_ENV
       - name: Make Version
         run: |
-          echo "build_file_devel=si5351gen_${{ env.build_sha }}_${{ matrix.target }}.bin" >> $GITHUB_ENV
-          echo "build_file_release=si5351gen_${{ env.build_tag }}_${{ matrix.target }}.bin" >> $GITHUB_ENV
+          echo "build_file_devel=si5351gen_${{ env.build_sha }}_${{ matrix.target }}.hex" >> $GITHUB_ENV
+          echo "build_file_release=si5351gen_${{ env.build_tag }}_${{ matrix.target }}.hex" >> $GITHUB_ENV
       - name: Print Version
         run: |
           echo SHA:     ${{ env.build_sha }}
@@ -69,7 +69,7 @@ jobs:
         if: "!startsWith(github.ref, 'refs/tags/')"
         with:
           name: ${{ env.build_file_devel }}
-          path: .pio/build/${{ matrix.target }}/firmware.bin
+          path: .pio/build/${{ matrix.target }}/firmware.hex
 
 
       - name: Run Release Build
@@ -84,4 +84,4 @@ jobs:
         if: "startsWith(github.ref, 'refs/tags/')"
         with:
           name: ${{ env.build_file_release }}
-          path: .pio/build/${{ matrix.target }}/firmware.bin
+          path: .pio/build/${{ matrix.target }}/firmware.hex
